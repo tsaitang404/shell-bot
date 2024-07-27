@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Starts the bot, handles permissions and chat context,
-// interprets commands and delegates the actual command
-// running to a Command instance. When started, an owner
-// ID should be given.
+// 启动Bot，处理权限和对话上下文
+// 解释命令并且委托执行
+// 每运行一个指令实例，开启新的进程。
+// 必须设置 ID
 
 var path = require("path");
 var fs = require("fs");
@@ -16,7 +16,7 @@ var CONFIG_FILE = path.join(__dirname, "config.json");
 try {
     var config = require(CONFIG_FILE);
 } catch (e) {
-    console.error("Couldn't load the configuration file, starting the wizard.\n");
+    console.error("不能载入配置文件, 启动向导\n");
     require("./lib/wizard").configWizard({ configFile: CONFIG_FILE });
     return;
 }
@@ -31,11 +31,11 @@ var defaultCwd = process.env.HOME || process.cwd();
 var fileUploads = {};
 
 bot.on("updateError", function (err) {
-  console.error("Error when updating:", err);
+  console.error("更新时出错：", err);
 });
 
 bot.on("synced", function () {
-  console.log("Bot ready.");
+  console.log("就绪了！");
 });
 
 
@@ -56,7 +56,7 @@ function rootHook(msg, reply, next) {
     // FIXME: reply to token message
     var contents = (msg.user ? "User" : "Chat") + " <em>" + escapeHtml(msg.chat.name) + "</em>";
     if (msg.chat.username) contents += " (@" + escapeHtml(msg.chat.username) + ")";
-    contents += " can now use the bot. To revoke, use:";
+    contents += "你可以开始使用了。要撤销请执行:";
     reply.to(owner).html(contents).command("revoke", id);
   }
 
@@ -68,7 +68,7 @@ function rootHook(msg, reply, next) {
 
   // Check that the chat is allowed
   if (!allowed) {
-    if (msg.command === "start") reply.html("Not authorized to use this bot.");
+    if (msg.command === "start") reply.html("没有被授权使用这个功能。");
     return;
   }
 
@@ -98,7 +98,7 @@ bot.message(function (msg, reply, next) {
   if (msg.context.editor)
     return msg.context.editor.handleReply(msg);
   if (!msg.context.command)
-    return reply.html("No command is running.");
+    return reply.html("没有在运行的指令。");
   msg.context.command.handleReply(msg);
 });
 
@@ -122,7 +122,7 @@ bot.command("r", function (msg, reply, next) {
 bot.command("cancel", "kill", function (msg, reply, next) {
   var arg = msg.args(1)[0];
   if (!msg.context.command)
-    return reply.html("No command is running.");
+    return reply.html("没有在运行的指令。");
 
   var group = msg.command === "cancel";
   var signal = group ? "SIGINT" : "SIGTERM";
@@ -131,7 +131,7 @@ bot.command("cancel", "kill", function (msg, reply, next) {
   try {
     msg.context.command.sendSignal(signal, group);
   } catch (err) {
-    reply.reply(msg).html("Couldn't send signal.");
+    reply.reply(msg).html("不能发送这个信号");
   }
 });
 
@@ -139,23 +139,23 @@ bot.command("cancel", "kill", function (msg, reply, next) {
 bot.command("enter", "type", function (msg, reply, next) {
   var args = msg.args();
   if (!msg.context.command)
-    return reply.html("No command is running.");
+    return reply.html("没有在运行的指令。");
   if (msg.command === "type" && !args) args = " ";
   msg.context.command.sendInput(args, msg.command === "type");
 });
 bot.command("control", function (msg, reply, next) {
   var arg = msg.args(1)[0];
   if (!msg.context.command)
-    return reply.html("No command is running.");
+    return reply.html("没有在运行的指令。");
   if (!arg || !/^[a-zA-Z]$/i.test(arg))
-    return reply.html("Use /control &lt;letter&gt; to send Control+letter to the process.");
+    return reply.html("使用 /control &lt;字母&gt; 发送Control+字母到这个进程。");
   var code = arg.toUpperCase().charCodeAt(0) - 0x40;
   msg.context.command.sendInput(String.fromCharCode(code), true);
 });
 bot.command("meta", function (msg, reply, next) {
   var arg = msg.args(1)[0];
   if (!msg.context.command)
-    return reply.html("No command is running.");
+    return reply.html("没有在运行的指令。");
   if (!arg)
     return msg.context.command.toggleMeta();
   msg.context.command.toggleMeta(true);
@@ -163,14 +163,14 @@ bot.command("meta", function (msg, reply, next) {
 });
 bot.command("end", function (msg, reply, next) {
   if (!msg.context.command)
-    return reply.html("No command is running.");
+    return reply.html("没有在运行的指令。");
   msg.context.command.sendEof();
 });
 
 // Redraw
 bot.command("redraw", function (msg, reply, next) {
   if (!msg.context.command)
-    return reply.html("No command is running.");
+    return reply.html("没有在运行的指令。");
   msg.context.command.redraw();
 });
 
@@ -178,17 +178,17 @@ bot.command("redraw", function (msg, reply, next) {
 bot.command("run", function (msg, reply, next) {
   var args = msg.args();
   if (!args)
-    return reply.html("Use /run &lt;command&gt; to execute something.");
+    return reply.html("使用 /run &lt;指令&gt; 去执行点什么...");
 
   if (msg.context.command) {
     var command = msg.context.command;
-    return reply.text("A command is already running.");
+    return reply.text("一个指令已经运行。");
   }
 
   if (msg.editor) msg.editor.detach();
   msg.editor = null;
 
-  console.log("Chat «%s»: running command «%s»", msg.chat.name, args);
+  console.log("对话 «%s»: 运行指令 «%s»", msg.chat.name, args);
   msg.context.command = new Command(reply, msg.context, args);
   msg.context.command.on("exit", function() {
     msg.context.command = null;
@@ -199,11 +199,11 @@ bot.command("run", function (msg, reply, next) {
 bot.command("file", function (msg, reply, next) {
   var args = msg.args();
   if (!args)
-    return reply.html("Use /file &lt;file&gt; to view or edit a text file.");
+    return reply.html("使用 /file &lt;文件&gt; 可以查看或编辑文本文件。");
 
   if (msg.context.command) {
     var command = msg.context.command;
-    return reply.reply(command.initialMessage.id || msg).text("A command is running.");
+    return reply.reply(command.initialMessage.id || msg).text("一个指令正在运行中...");
   }
 
   if (msg.editor) msg.editor.detach();
@@ -213,18 +213,18 @@ bot.command("file", function (msg, reply, next) {
     var file = path.resolve(msg.context.cwd, args);
     msg.context.editor = new Editor(reply, file);
   } catch (e) {
-    reply.html("Couldn't open file: %s", e.message);
+    reply.html("不能打开文件: %s", e.message);
   }
 });
 
 // Keypad
 bot.command("keypad", function (msg, reply, next) {
   if (!msg.context.command)
-    return reply.html("No command is running.");
+    return reply.html("没有在运行的指令。");
   try {
     msg.context.command.toggleKeypad();
   } catch (e) {
-    reply.html("Couldn't toggle keypad.");
+    reply.html("无法切换键盘。");
   }
 });
 
@@ -232,13 +232,13 @@ bot.command("keypad", function (msg, reply, next) {
 bot.command("upload", function (msg, reply, next) {
   var args = msg.args();
   if (!args)
-    return reply.html("Use /upload &lt;file&gt; and I'll send it to you");
+    return reply.html("使用 /upload &lt;文件&gt; 我会把他发给你。");
 
   var file = path.resolve(msg.context.cwd, args);
   try {
     var stream = fs.createReadStream(file);
   } catch (e) {
-    return reply.html("Couldn't open file: %s", e.message);
+    return reply.html("无法打开文件: %s", e.message);
   }
 
   // Catch errors but do nothing, they'll be propagated to the handler below
@@ -246,7 +246,7 @@ bot.command("upload", function (msg, reply, next) {
 
   reply.action("upload_document").document(stream).then(function (e, msg) {
     if (e)
-      return reply.html("Couldn't send file: %s", e.message);
+      return reply.html("无法发送文件: %s", e.message);
     fileUploads[msg.id] = file;
   });
 });
@@ -261,14 +261,14 @@ function handleDownload(msg, reply) {
   try {
     var stream = fs.createWriteStream(file);
   } catch (e) {
-    return reply.html("Couldn't write file: %s", e.message);
+    return reply.html("不能写入文件: %s", e.message);
   }
   bot.fileStream(msg.file, function (err, ostream) {
     if (err) throw err;
     reply.action("typing");
     ostream.pipe(stream);
     ostream.on("end", function () {
-      reply.html("File written: %s", file);
+      reply.html("文件写入: %s", file);
     });
   });
 }
@@ -279,16 +279,16 @@ bot.command("status", function (msg, reply, next) {
 
   // Running command
   if (context.editor) content += "Editing file: " + escapeHtml(context.editor.file) + "\n\n";
-  else if (!context.command) content += "No command running.\n\n";
-  else content += "Command running, PID "+context.command.pty.pid+".\n\n";
+  else if (!context.command) content += "没有指令在运行。\n\n";
+  else content += "指令运行在 PID "+context.command.pty.pid+".\n\n";
 
   // Chat settings
   content += "Shell: " + escapeHtml(context.shell) + "\n";
-  content += "Size: " + context.size.columns + "x" + context.size.rows + "\n";
-  content += "Directory: " + escapeHtml(context.cwd) + "\n";
-  content += "Silent: " + (context.silent ? "yes" : "no") + "\n";
-  content += "Shell interactive: " + (context.interactive ? "yes" : "no") + "\n";
-  content += "Link previews: " + (context.linkPreviews ? "yes" : "no") + "\n";
+  content += "终端尺寸: " + context.size.columns + "x" + context.size.rows + "\n";
+  content += "工作目录: " + escapeHtml(context.cwd) + "\n";
+  content += "静悄悄: " + (context.silent ? "yes" : "no") + "\n";
+  content += "shell是否可交互: " + (context.interactive ? "yes" : "no") + "\n";
+  content += "链接可预览: " + (context.linkPreviews ? "yes" : "no") + "\n";
   var uid = process.getuid(), gid = process.getgid();
   if (uid !== gid) uid = uid + "/" + gid;
   content += "UID/GID: " + uid + "\n";
@@ -297,10 +297,10 @@ bot.command("status", function (msg, reply, next) {
   if (msg.chat.id === owner) {
     var grantedIds = Object.keys(granted);
     if (grantedIds.length) {
-      content += "\nGranted chats:\n";
+      content += "\n授权对话:\n";
       content += grantedIds.map(function (id) { return id.toString(); }).join("\n");
     } else {
-      content += "\nNo chats granted. Use /grant or /token to allow another chat to use the bot.";
+      content += "\n 不允许闲聊。 使用 /grant 或 /token 允许别人对话。";
     }
   }
 
@@ -314,14 +314,14 @@ bot.command("shell", function (msg, reply, next) {
   if (arg) {
     if (msg.context.command) {
       var command = msg.context.command;
-      return reply.reply(command.initialMessage.id || msg).html("Can't change the shell while a command is running.");
+      return reply.reply(command.initialMessage.id || msg).html("有指令运行时不能改变shell");
     }
     try {
       var shell = utils.resolveShell(arg);
       msg.context.shell = shell;
-      reply.html("Shell changed.");
+      reply.html("Shell 已改变。");
     } catch (err) {
-      reply.html("Couldn't change the shell.");
+      reply.html("不能改变 shell。");
     }
   } else {
     var shell = msg.context.shell;
@@ -329,9 +329,9 @@ bot.command("shell", function (msg, reply, next) {
     var idx = otherShells.indexOf(shell);
     if (idx !== -1) otherShells.splice(idx, 1);
 
-    var content = "Current shell: " + escapeHtml(shell);
+    var content = "当前 shell: " + escapeHtml(shell);
     if (otherShells.length)
-      content += "\n\nOther shells:\n" + otherShells.map(escapeHtml).join("\n");
+      content += "\n\n其他 shells:\n" + otherShells.map(escapeHtml).join("\n");
     reply.html(content);
   }
 });
@@ -342,7 +342,7 @@ bot.command("cd", function (msg, reply, next) {
   if (arg) {
     if (msg.context.command) {
       var command = msg.context.command;
-      return reply.reply(command.initialMessage.id || msg).html("Can't change directory while a command is running.");
+      return reply.reply(command.initialMessage.id || msg).html("有指令运行时不能改变工作目录。");
     }
     var newdir = path.resolve(msg.context.cwd, arg);
     try {
@@ -353,7 +353,7 @@ bot.command("cd", function (msg, reply, next) {
     }
   }
 
-  reply.html("Now at: %s", msg.context.cwd).then().then(function (m) {
+  reply.html("在: %s", msg.context.cwd).then().then(function (m) {
     msg.context.lastDirMessageId = m.id;
   });
 });
@@ -362,7 +362,7 @@ bot.command("cd", function (msg, reply, next) {
 bot.command("env", function (msg, reply, next) {
   var env = msg.context.env, key = msg.args();
   if (!key)
-    return reply.reply(msg).html("Use %s to see the value of a variable, or %s to change it.", "/env <name>", "/env <name>=<value>");
+    return reply.reply(msg).html("使用 %s 查看或者修改变量的值", "/env <name>", "/env <name>=<value>");
 
   var idx = key.indexOf("=");
   if (idx === -1) idx = key.indexOf(" ");
@@ -370,7 +370,7 @@ bot.command("env", function (msg, reply, next) {
   if (idx !== -1) {
     if (msg.context.command) {
       var command = msg.context.command;
-      return reply.reply(command.initialMessage.id || msg).html("Can't change the environment while a command is running.");
+      return reply.reply(command.initialMessage.id || msg).html("有指令运行时不能改变环境。");
     }
 
     var value = key.substring(idx + 1);
@@ -394,47 +394,47 @@ bot.command("resize", function (msg, reply, next) {
   var match = /(\d+)\s*((\sby\s)|x|\s|,|;)\s*(\d+)/i.exec(arg.trim());
   if (match) var columns = parseInt(match[1]), rows = parseInt(match[4]);
   if (!columns || !rows)
-    return reply.text("Use /resize <columns> <rows> to resize the terminal.");
+    return reply.text("使用 /resize <列> <行> 改变终端大小。");
 
   msg.context.size = { columns: columns, rows: rows };
   if (msg.context.command) msg.context.command.resize(msg.context.size);
-  reply.reply(msg).html("Terminal resized.");
+  reply.reply(msg).html("终端大小已更新。");
 });
 
 // Settings: Silent
 bot.command("setsilent", function (msg, reply, next) {
   var arg = utils.resolveBoolean(msg.args());
   if (arg === null)
-    return reply.html("Use /setsilent [yes|no] to control whether new output from the command will be sent silently.");
+    return reply.html("使用 /setsilent [yes|no] 控制指令的输出是否静音。");
 
   msg.context.silent = arg;
   if (msg.context.command) msg.context.command.setSilent(arg);
-  reply.html("Output will " + (arg ? "" : "not ") + "be sent silently.");
+  reply.html("输出将 " + (arg ? "" : "不") + "会静音发送。");
 });
 
 // Settings: Interactive
 bot.command("setinteractive", function (msg, reply, next) {
   var arg = utils.resolveBoolean(msg.args());
   if (arg === null)
-    return reply.html("Use /setinteractive [yes|no] to control whether shell is interactive. Enabling it will cause your aliases in i.e. .bashrc to be honored, but can cause bugs in some shells such as fish.");
+    return reply.html("使用 /setinteractive [yes|no] 控制shell是否是可交互的。 启用会加载.bashrc文件中的别名，但可能会导致某些 shell（例如fish）中出现错误。");
 
   if (msg.context.command) {
     var command = msg.context.command;
-    return reply.reply(command.initialMessage.id || msg).html("Can't change the interactive flag while a command is running.");
+    return reply.reply(command.initialMessage.id || msg).html("指令运行时无法更改其交互性。");
   }
   msg.context.interactive = arg;
-  reply.html("Commands will " + (arg ? "" : "not ") + "be started with interactive shells.");
+  reply.html("指令将" + (arg ? "" : "不") + "会在可交互 shell 运行。");
 });
 
 // Settings: Link previews
 bot.command("setlinkpreviews", function (msg, reply, next) {
   var arg = utils.resolveBoolean(msg.args());
   if (arg === null)
-    return reply.html("Use /setlinkpreviews [yes|no] to control whether links in the output get expanded.");
+    return reply.html("使用 /setlinkpreviews [yes|no] 控制输出中的链接是否展开。");
 
   msg.context.linkPreviews = arg;
   if (msg.context.command) msg.context.command.setLinkPreviews(arg);
-  reply.html("Links in the output will " + (arg ? "" : "not ") + "be expanded.");
+  reply.html("输出中的链接将 " + (arg ? "" : "不") + "会展开。");
 });
 
 // Settings: Other chat access
@@ -442,71 +442,62 @@ bot.command("grant", "revoke", function (msg, reply, next) {
   if (msg.context.id !== owner) return;
   var arg = msg.args(1)[0], id = parseInt(arg);
   if (!arg || isNaN(id))
-    return reply.html("Use %s or %s to control whether the chat with that ID can use this bot.", "/grant <id>", "/revoke <id>");
+    return reply.html("使用 %s 或 %s 控制这个ID能否对话。", "/grant <id>", "/revoke <id>");
   reply.reply(msg);
   if (msg.command === "grant") {
     granted[id] = true;
-    reply.html("Chat %s can now use this bot. Use /revoke to undo.", id);
+    reply.html("对话 %s 现在能够使用祂。 使用 /revoke 撤销权限.", id);
   } else {
     if (contexts[id] && contexts[id].command)
-      return reply.html("Couldn't revoke specified chat because a command is running.");
+      return reply.html("指令运行时不能撤销对话权限");
     delete granted[id];
     delete contexts[id];
-    reply.html("Chat %s has been revoked successfully.", id);
+    reply.html("对话 %s 的权限被撤销。", id);
   }
 });
 bot.command("token", function (msg, reply, next) {
   if (msg.context.id !== owner) return;
   var token = utils.generateToken();
   tokens[token] = true;
-  reply.disablePreview().html("One-time access token generated. The following link can be used to get access to the bot:\n%s\nOr by forwarding me this:", bot.link(token));
+  reply.disablePreview().html("生成一次性访问令牌。 以下链接可以用于访问对话:\n%s\n或者转发给我: ", bot.link(token));
   reply.command(true, "start", token);
 });
 
 // Welcome message, help
 bot.command("start", function (msg, reply, next) {
   if (msg.args() && msg.context.id === owner && Object.hasOwnProperty.call(tokens, msg.args())) {
-    reply.html("You were already authenticated; the token has been revoked.");
+    reply.html("令牌已被撤销。");
   } else {
-    reply.html("Welcome! Use /run to execute commands, and reply to my messages to send input. /help for more info.");
+    reply.html("欢迎! 使用 /run 来执行指令,或者恢复我的消息来发送输入。 /help 获取帮助。");
   }
 });
 
 bot.command("help", function (msg, reply, next) {
   reply.html(
-    "Use /run &lt;command&gt; and I'll execute it for you. While it's running, you can:\n" +
+    "使用 /run &lt;command&gt; 命令，我会为您执行它。在命令运行时，您可以：\n" +
     "\n" +
-    "‣ Reply to one of my messages to send input to the command, or use /enter.\n" +
-    "‣ Use /end to send an EOF (Ctrl+D) to the command.\n" +
-    "‣ Use /cancel to send SIGINT (Ctrl+C) to the process group, or the signal you choose.\n" +
-    "‣ Use /kill to send SIGTERM to the root process, or the signal you choose.\n" + 
-    "‣ For graphical applications, use /redraw to force a repaint of the screen.\n" +
-    "‣ Use /type or /control to press keys, /meta to send the next key with Alt, or /keypad to show a keyboard for special keys.\n" + 
+    "‣ 回复我的消息之一以向命令发送输入，或使用 /enter。\n" +
+    "‣ 使用 /end 发送 EOF（Ctrl+D）给命令。\n" +
+    "‣ 使用 /cancel 向进程组发送 SIGINT（Ctrl+C），或者您选择的信号。\n" +
+    "‣ 使用 /kill 向根进程发送 SIGTERM，或者您选择的信号。\n" + 
+    "‣ 对于图形应用程序，使用 /redraw 强制重新绘制屏幕。\n" +
+    "‣ 使用 /type 或 /control 按键，/meta 以使用 Alt 键发送下一个键，或者使用 /keypad 显示特殊键盘。\n" + 
     "\n" +
-    "You can see the current status and settings for this chat with /status. Use /env to " +
-    "manipulate the environment, /cd to change the current directory, /shell to see or " +
-    "change the shell used to run commands and /resize to change the size of the terminal.\n" +
+    "您可以使用 /status 查看此聊天的当前状态和设置。使用 /env 操作环境，/cd 更改当前目录，/shell 查看或更改用于运行命令的 shell，以及使用 /resize 更改终端的大小。\n" +
     "\n" +
-    "By default, output messages are sent silently (without sound) and links are not expanded. " +
-    "This can be changed through /setsilent and /setlinkpreviews. Note: links are " +
-    "never expanded in status lines.\n" +
+    "默认情况下，输出消息会静默发送（无声音），链接不会被展开。这可以通过 /setsilent 和 /setlinkpreviews 进行更改。注意：链接在状态行中永远不会被展开。\n" +
     "\n" +
-    "<em>Additional features</em>\n" +
+    "<em>额外功能</em>\n" +
     "\n" +
-    "Use /upload &lt;file&gt; and I'll send that file to you. If you reply to that " +
-    "message by uploading me a file, I'll overwrite it with yours.\n" +
+    "使用 /upload &lt;file&gt;，我会将该文件发送给您。如果您回复该消息并上传文件给我，我会用您的文件覆盖它。\n" +
     "\n" +
-    "You can also use /file &lt;file&gt; to display the contents of file as a text " +
-    "message. This also allows you to edit the file, but you have to know how..."
+    "您还可以使用 /file &lt;file&gt; 以文本消息形式显示文件的内容。这也允许您编辑文件，但您必须知道如何操作..."
   );
 });
 
-// FIXME: add inline bot capabilities!
-// FIXME: possible feature: restrict chats to UIDs
-// FIXME: persistence
-// FIXME: shape messages so we don't hit limits, and react correctly when we do
+
 
 
 bot.command(function (msg, reply, next) {
-  reply.reply(msg).text("Invalid command.");
+  reply.reply(msg).text("无效的指令。");
 });
