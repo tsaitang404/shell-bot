@@ -409,7 +409,7 @@ bot.command("setsilent", function (msg, reply, next) {
 
   msg.context.silent = arg;
   if (msg.context.command) msg.context.command.setSilent(arg);
-  reply.html("输出将 " + (arg ? "" : "不") + "会静音发送。");
+  reply.html("输出将" + (arg ? "" : "不") + "会静音发送。");
 });
 
 // Settings: Interactive
@@ -434,7 +434,7 @@ bot.command("setlinkpreviews", function (msg, reply, next) {
 
   msg.context.linkPreviews = arg;
   if (msg.context.command) msg.context.command.setLinkPreviews(arg);
-  reply.html("输出中的链接将 " + (arg ? "" : "不") + "会展开。");
+  reply.html("输出中的链接将" + (arg ? "" : "不") + "会展开。");
 });
 
 // Settings: Other chat access
@@ -459,7 +459,7 @@ bot.command("token", function (msg, reply, next) {
   if (msg.context.id !== owner) return;
   var token = utils.generateToken();
   tokens[token] = true;
-  reply.disablePreview().html("生成一次性访问令牌。 以下链接可以用于访问对话:\n%s\n或者转发给我: ", bot.link(token));
+  reply.disablePreview().html("生成一次性访问令牌。 以下链接可以用于访问对话:\n%s\n或者转发下面的消息: ", bot.link(token));
   reply.command(true, "start", token);
 });
 
